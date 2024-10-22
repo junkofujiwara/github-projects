@@ -1,5 +1,4 @@
-# import github project information
-
+'''Import GitHub project information'''
 import json
 import logging
 import os
@@ -9,22 +8,24 @@ FOLDER_PATH = "projects"
 MAPPING_FILE_PATH = "project_mapping.log"
 
 def get_json_files(folder_path):
+    '''Get JSON files in a folder'''
     return [f for f in os.listdir(folder_path) if f.endswith('.json')]
 
-def import_github_project(org, token):
+def import_github_project(organization, auth_token):
     '''Import GitHub project information'''
-    github = GitHub(org, token)
+    github = GitHub(organization, auth_token)
     json_files = get_json_files(FOLDER_PATH)
     owner_id = github.get_ownerid()
 
-    with open(MAPPING_FILE_PATH, 'w') as mapping_file:
+    with open(MAPPING_FILE_PATH, 'w', encoding='utf-8') as mapping_file:
         for json_file in json_files:
             process_file(github, owner_id, json_file, mapping_file)
-   
+
 def process_file(github, owner_id, json_file, mapping_file):
+    '''Process a file'''
     file_path = os.path.join(FOLDER_PATH, json_file)
     try:
-        with open(file_path, 'r') as file:
+        with open(file_path, 'r', encoding='utf-8') as file:
             project_data = json.load(file)
             logging.info('import project: %s', file_path)
 
@@ -34,8 +35,14 @@ def process_file(github, owner_id, json_file, mapping_file):
             github.update_project(target_project_id, project_data)
             mapping_file.write(f"{source_project_id} -> {target_project_id}\n")
 
-    except Exception as e:
-        logging.error('Failed to process file %s: %s', file_path, str(e))
+    except json.JSONDecodeError as json_error:
+        logging.error('Failed to decode JSON file %s: %s', file_path, str(json_error))
+    except FileNotFoundError as file_not_found_error:
+        logging.error('File not found %s: %s', file_path, str(file_not_found_error))
+    except KeyError as key_error:
+        logging.error('Missing key in project data %s: %s', file_path, str(key_error))
+    except Exception as general_error:
+        logging.error('Failed to process file %s: %s', file_path, str(general_error))
 
 if __name__ == '__main__':
     logging.basicConfig(
@@ -54,6 +61,4 @@ if __name__ == '__main__':
         raise KeyError("The 'GITHUB_TOKEN_TARGET' environment variable is missing.")
 
     import_github_project(org, token)
-
-
-                                      
+                         
