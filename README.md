@@ -1,4 +1,15 @@
-# GitHub Project Operation
+# GitHub Projects Operation
+
+## Description
+This script exports GitHub Projects information to a json file and imports it to another organization.
+The following information is exported.
+- Projects
+- Project fields
+- Project views
+- Project items (with repository information and issue/PR number)
+    - Issue
+    - Pull Request
+Import project script only generates a new project. It does not import fields, views, issues, pull requests, or other project items.
 
 ## Requirements
 - Python
@@ -23,7 +34,7 @@ Json file name is Project ID.
 - "projects" folder: Project information in json format
 - "projects_fields" folder: Project fields information in json format
 - "projects_views" folder: Project views information in json format
-- "project_items" folder: Project items information in json format
+- "projects_items" folder: Project items information in json format
 
 ### Log
 export.log
