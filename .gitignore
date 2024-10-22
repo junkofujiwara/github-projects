@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+*.log
+*.csv
+.venv/*
+.DS_Store
+projects*/*.json
