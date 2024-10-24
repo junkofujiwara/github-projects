@@ -19,6 +19,9 @@ Import project script only generates a new project. It does not import fields, v
 
 ## Export
 
+### Overview
+export.py exports the project information of the specified organization to a json file.
+
 ### Usage
     
     ```bash
@@ -39,22 +42,50 @@ Json file name is Project ID.
 ### Log
 export.log
 
-## Import
+## Import (Create Project)
+
+### Overview
+import.py with create-projects option generates a new project based on the exported project information.
+
 ### Usage
     
     ```bash
     $ export GITHUB_TOKEN_TARGET=your_token
     $ export GITHUB_ORG_TARGET=your_org_name
 
-    $ python import.py
+    $ python import.py -o create-projects
     ```
 ### Input - Project Info
-All json files are imported from the "input" folder.
-Json file name is Project ID.
+- All json files are imported from the "input" folder.
+- Json file name is Project ID.
 - "projects" folder: Project information in json format
 
 ### Log
-import.log
+- import.log
+- project_mapping.log
 
 ### Note
 Projects are imported based on the Project Name, which may result in duplicate projects. Ensure that the execution is performed on an empty organization.
+
+## Import (Insert Items)
+
+### Overview
+import.py with insert-items inserts existing items (Issues/PRs) into the existing project based on the exported project information.
+
+### Usage
+    
+    ```bash
+    $ export GITHUB_TOKEN_TARGET=your_token
+    $ export GITHUB_ORG_TARGET=your_org_name
+
+    $ python import.py -o insert-items
+    ```
+### Input - Project Info
+- All json files are imported from the "input" folder.
+- Json file name is Project ID.
+- "projects_items" folder: Project information in json format
+
+### Log
+import.log
+project_item_mapping.log
+

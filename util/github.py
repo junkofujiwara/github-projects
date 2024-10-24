@@ -131,7 +131,7 @@ class Project:
                 variables['cursor'] = page_info['endCursor']
             else:
                 break
-
+            
     def fetch_items(self, github):
         '''Fetch items for the project'''
         query = '''
@@ -143,6 +143,7 @@ class Project:
                   id
                   fieldValues(first: 8) {
                     nodes {
+                      __typename
                       ... on ProjectV2ItemFieldTextValue {
                         text
                         field {
@@ -161,6 +162,24 @@ class Project:
                       }
                       ... on ProjectV2ItemFieldSingleSelectValue {
                         name
+                        field {
+                          ... on ProjectV2FieldCommon {
+                            name
+                          }
+                        }
+                      }
+                      ... on ProjectV2ItemFieldNumberValue{
+                        number
+                        field {
+                          ... on ProjectV2FieldCommon {
+                            name
+                          }
+                        }
+                      }
+                      ... on ProjectV2ItemFieldIterationValue {
+                        title
+                        startDate
+                        duration
                         field {
                           ... on ProjectV2FieldCommon {
                             name
@@ -237,7 +256,69 @@ class Project:
                     nodes {
                       id
                       name
+                      number
+                      layout
                       filter
+                      sortByFields(first: 20) {
+                          nodes {
+                            direction
+                            field {
+                                ... on ProjectV2Field {
+                                  id
+                                  name
+                                  dataType
+                                }
+                                ... on ProjectV2IterationField {
+                                  id
+                                  name
+                                  dataType
+                                }
+                                ... on ProjectV2SingleSelectField {
+                                  id
+                                  name
+                                  dataType
+                                }
+                              }
+                            }
+                        }
+                      groupByFields(first: 20) {
+                          nodes {
+                                ... on ProjectV2Field {
+                                  id
+                                  name
+                                  dataType
+                                }
+                                ... on ProjectV2IterationField {
+                                  id
+                                  name
+                                  dataType
+                                }
+                                ... on ProjectV2SingleSelectField {
+                                  id
+                                  name
+                                  dataType
+                                }
+                            }
+                        }
+                      verticalGroupByFields(first: 20) {
+                          nodes {
+                            ... on ProjectV2Field {
+                              id
+                              name
+                              dataType
+                            }
+                            ... on ProjectV2IterationField {
+                              id
+                              name
+                              dataType
+                            }
+                            ... on ProjectV2SingleSelectField {
+                              id
+                              name
+                              dataType
+                            }
+                          }
+                        }
                       fields(first: 20) {
                         nodes {
                           ... on ProjectV2Field {
@@ -355,6 +436,12 @@ class GitHub:
 
         return projects
 
+    def get_single_project(self, target_project_id):
+        project = Project(
+              project_id = target_project_id
+        )
+        return project.fetch_fields(self)
+
     def create_project(self, project, owner_id):
         '''create_project'''
         query = '''
@@ -421,7 +508,8 @@ class GitHub:
         data = response.json()
         if 'data' in data and 'updateProjectV2' in data['data'] and 'projectV2' in data['data']['updateProjectV2']:
             project_id = data['data']['updateProjectV2']['projectV2']['id']
-            return project_id
+            project_title = data['data']['updateProjectV2']['projectV2']['title']
+            return project_id, project_title
 
         raise ValueError(f"Failed to update project: {data}")
 
@@ -473,3 +561,63 @@ class GitHub:
         data = response.json()
         if 'errors' in data:
             raise ValueError(f"Failed to create fields: {data}")
+        
+    def get_content(self, repository, number):
+        '''get_content'''
+        query = '''
+        query($owner: String!, $repository: String!, $number: Int!) {
+          repository(owner: $owner, name: $repository) {
+            issueOrPullRequest(number: $number) {
+             __typename
+              ... on Issue {
+                id
+                number
+                title
+              }
+              ... on PullRequest {
+                id
+                number
+                title
+              }
+            }
+          }
+        }
+        '''
+        variables = {
+            "owner": self.org,
+            "repository": repository,
+            "number": number
+        }
+        response = requests.post(self.endpoint,
+                                 json={'query': query, 'variables': variables},
+                                 headers=self.headers)
+        data = response.json()
+        if 'errors' in data:
+            raise ValueError(f"Failed to get contents: {data}")
+        return data['data']['repository']['issueOrPullRequest']
+
+    def add_project_item(self, project_id, content_id):
+        '''add_item'''
+        query = '''
+        mutation($projectId: ID!, $contentId: ID!) {
+          addProjectV2ItemById(input: {
+            projectId: $projectId
+            contentId: $contentId
+          }) {
+            item {
+              id
+            }
+          }
+        }
+        '''
+        variables = {
+            "projectId": project_id,
+            "contentId": content_id
+        }
+        response = requests.post(self.endpoint,
+                                 json={'query': query, 'variables': variables},
+                                 headers=self.headers)
+        data = response.json()
+        if 'errors' in data:
+            raise ValueError(f"Failed to create item: {data}")
+        return data['data']['addProjectV2ItemById']['item']
