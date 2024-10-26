@@ -1,24 +1,26 @@
 #!/usr/bin/env python3
 # -*- coding: utf_8 -*-
 '''github.py'''
+import json
 import requests
 
 class ProjectV2Field:
     '''ProjectV2Field class to store field data'''
-    def __init__(self, field_id, name):
+    def __init__(self, field_id, name, typename):
         self.id = field_id
         self.name = name
+        self.typename = typename
 
 class ProjectV2IterationField(ProjectV2Field):
     '''ProjectV2IterationField class to store iteration field data'''
-    def __init__(self, field_id, name, configuration):
-        super().__init__(field_id, name)
+    def __init__(self, field_id, name, typename, configuration):
+        super().__init__(field_id, name, typename)
         self.configuration = configuration
 
 class ProjectV2SingleSelectField(ProjectV2Field):
     '''ProjectV2SingleSelectField class to store single select field data'''
-    def __init__(self, field_id, name, options):
-        super().__init__(field_id, name)
+    def __init__(self, field_id, name, typename, options):
+        super().__init__(field_id, name, typename)
         self.options = options
 
 class ProjectV2ItemFieldValueCommon:
@@ -78,6 +80,7 @@ class Project:
             ... on ProjectV2 {
               fields(first: 20, after: $cursor) {
                 nodes {
+                  __typename
                   ... on ProjectV2Field {
                     id
                     name
@@ -88,9 +91,19 @@ class Project:
                     name
                     dataType
                     configuration {
+                      duration
+                      startDay
+                      completedIterations{
+                        startDate
+                        id
+                        title
+                        duration
+                      }
                       iterations {
                         startDate
                         id
+                        title
+                        duration
                       }
                     }
                   }
@@ -437,10 +450,48 @@ class GitHub:
         return projects
 
     def get_single_project(self, target_project_id):
-        project = Project(
-              project_id = target_project_id
-        )
-        return project.fetch_fields(self)
+        '''get_single_project'''
+        try:
+          project = Project(
+                project_id = target_project_id
+          )
+          project.fetch_fields(self)
+          project.fetch_items(self)
+
+          # fields
+          fields = []
+          for field_data in project.fields[0]:
+            typename = field_data.get("__typename")
+            if typename == "ProjectV2SingleSelectField":
+                field = ProjectV2SingleSelectField(
+                    field_data["id"],
+                    field_data["name"],
+                    typename,
+                    field_data["options"]
+                )
+            elif typename == "ProjectV2IterationField":
+                field = ProjectV2IterationField(
+                    field_data["id"],
+                    field_data["name"],
+                    typename,
+                    field_data["configuration"]
+                )
+            else:
+                field = ProjectV2Field(
+                    field_data["id"],
+                    field_data["name"],
+                    typename
+                )
+            fields.append(field)
+
+          # draft items
+          items = project.items[0]
+          draft_items = [{'id': item['content']['id'], 'title': item['content']['title']} for item in items]
+
+          return fields, draft_items
+              
+        except Exception as e:
+            raise ValueError(f"Failed to get project fields: {e}")
 
     def create_project(self, project, owner_id):
         '''create_project'''
@@ -621,3 +672,97 @@ class GitHub:
         if 'errors' in data:
             raise ValueError(f"Failed to create item: {data}")
         return data['data']['addProjectV2ItemById']['item']
+
+    def set_item_field_value(self, project_id, item_id, field_id, value, value_type):
+        '''set_field_value'''
+        value_key = {
+            'text': 'text',
+            'iteration': 'iterationId',
+            'selection': 'singleSelectOptionId',
+            'date': 'date',
+            'number': 'number'
+        }.get(value_type)
+    
+        if not value_key:
+            raise ValueError(f"Invalid value_type: {value_type}")
+    
+        value_type_map = {
+            'text': 'String',
+            'iteration': 'String',
+            'selection': 'String',
+            'date': 'Date',
+            'number': 'Float'
+        }
+        
+        query = f'''
+        mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: {value_type_map[value_type]}!) {{
+          updateProjectV2ItemFieldValue(input: {{
+            projectId: $projectId
+            itemId: $itemId
+            fieldId: $fieldId
+            value: {{ 
+                {value_key}: $value       
+              }}
+          }}) {{
+            projectV2Item {{
+              id
+            }}
+          }}
+        }}
+        '''
+        variables = {
+            "projectId": project_id,
+            "itemId": item_id,
+            "fieldId": field_id,
+            "value": value
+        }
+        response = requests.post(self.endpoint,
+                                 json={'query': query, 'variables': variables},
+                                 headers=self.headers)
+        data = response.json()
+        if 'errors' in data:
+            raise ValueError(f"Failed to set item field value for {value_type}: {data}")
+        return data['data']['updateProjectV2ItemFieldValue']['projectV2Item']['id']
+    
+    def set_item_field_value_text(self, project_id, item_id, field_id, value):
+        return self.set_item_field_value(project_id, item_id, field_id, value, 'text')
+    
+    def set_item_field_value_iteration(self, project_id, item_id, field_id, value):
+        return self.set_item_field_value(project_id, item_id, field_id, value, 'iteration')
+    
+    def set_item_field_value_selection(self, project_id, item_id, field_id, value):
+        return self.set_item_field_value(project_id, item_id, field_id, value, 'selection')
+    
+    def set_item_field_value_date(self, project_id, item_id, field_id, value):
+        return self.set_item_field_value(project_id, item_id, field_id, value, 'date')
+    
+    def set_item_field_value_number(self, project_id, item_id, field_id, value):
+        return self.set_item_field_value(project_id, item_id, field_id, value, 'number')
+    
+    def add_draft_issue(self, project_id, title, body):
+        '''add_draft_issue'''
+        query = '''
+        mutation($projectId: ID!, $title: String!, $body: String) {
+          addProjectV2DraftIssue(input: {
+            projectId: $projectId
+            title: $title
+            body: $body
+          }) {
+            projectItem {
+              id
+            }
+          }
+        }
+        '''
+        variables = {
+            "projectId": project_id,
+            "title": title,
+            "body": body
+        }
+        response = requests.post(self.endpoint,
+                                 json={'query': query, 'variables': variables},
+                                 headers=self.headers)
+        data = response.json()
+        if 'errors' in data:
+            raise ValueError(f"Failed to create draft issue: {data}")
+        return data['data']['addProjectV2DraftIssue']['projectItem']['id']

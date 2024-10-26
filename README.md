@@ -86,6 +86,8 @@ import.py with insert-items inserts existing items (Issues/PRs) into the existin
 - "projects_items" folder: Project information in json format
 
 ### Log
-import.log
-project_item_mapping.log
+- import.log
+- project_item_mapping.log
 
+### Note
+- If there is no repository or issue/PR in the target organization, the item is not inserted.

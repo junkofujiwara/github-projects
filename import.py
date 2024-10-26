@@ -48,7 +48,9 @@ def create_project(project_id, github, owner_id, file_path, mapping_file):
             source_project_id = project_data['id']
             updated_project_id, updated_project_title = github.update_project(target_project_id, project_data)
             mapping_file.write(f"{source_project_id} -> {target_project_id}\n")
-            logging.info('Create Project Succeeded - Id:%s Title:%s', updated_project_id, updated_project_title)
+            logging.info('Create Project Succeeded - Id:%s Title:%s',
+                         updated_project_id,
+                         updated_project_title)
 
     except FileNotFoundError as fnf_error:
         logging.error('File not found - %s %s', file_path, str(fnf_error))
@@ -73,62 +75,176 @@ def import_github_project_items(organization, auth_token):
 def insert_items(project_id, github, file_path, mapped_project_id, mapping_file):
     '''Insert items'''
     try:
-        with open(file_path, 'r', encoding='utf-8') as file:
-            project_data = json.load(file)
-            logging.debug('Insert Items - Source:%s Taregt:%s', project_id, mapped_project_id)
+        project_data = load_project_data(file_path)
+        if not project_data:
+            logging.debug('Item not found in file %s.', file_path)
+            return
 
-            # items are not in the json file
-            if not project_data or not isinstance(project_data, list) or not project_data[0] or not isinstance(project_data[0], list) or not project_data[0][0]:
-                logging.debug('Item not found in file %s.', file_path)
-                return
-            
-            # GitHub contents - issue / pull request
-            for item in project_data[0]:
-                if 'content' in item:
-                    content_id, content_number, repository_name = get_content_from_file(item)
-                    field_values_list = get_values_from_file(item)
-                    logging.info('Insert Items -  Project ID: %s, Content ID: %s, Number: %s, Repository: %s, Fields Count: %s',
-                                 mapped_project_id,
-                                 content_id,
-                                 content_number,
-                                 repository_name,
-                                 len(field_values_list))
+        mapped_project_fields_info, mapped_project_draft_issue = github.get_single_project(mapped_project_id)
 
-                    # get content with new id
-                    github_content = github.get_content(repository_name, content_number)
-                    target_content_id = github_content['id']
-                    # add item
-                    github.add_project_item(mapped_project_id, target_content_id)
-                    # add field values
-                    for field in field_values_list:
-                        if field['typename'] == 'ProjectV2ItemFieldTextValue':
-                            logging.debug('text: %s, %s', field['field_name'], field['value'])
-                        elif field['typename'] == 'ProjectV2ItemFieldNumberValue':
-                            logging.debug('number: %s, %s', field['field_name'], field['value'])
-                        elif field['typename'] == 'ProjectV2ItemFieldSingleSelectValue':
-                            logging.debug('select: %s, %s', field['field_name'], field['value'])
-                            
-
-                    mapping_file.write(f"{repository_name},{content_number},{content_id} -> {target_content_id}\n")
-                    logging.info('Insert Items Succeeded - Project ID: %s, Content ID: %s, Number: %s, Repository: %s',
-                                 mapped_project_id,
-                                 target_content_id,
-                                 content_number,
-                                 repository_name)
+        for item in project_data[0]:
+            if 'content' in item:
+                process_item(item, github, mapped_project_id, mapped_project_fields_info, mapped_project_draft_issue, mapping_file)
 
     except FileNotFoundError as fnf_error:
         logging.error('File not found - %s %s', file_path, str(fnf_error))
     except Exception as general_error:
         logging.error('Insert Items Failed - %s: %s', project_id, str(general_error))
 
+def load_project_data(file_path):
+    '''Load project data'''
+    with open(file_path, 'r', encoding='utf-8') as file:
+        project_data = json.load(file)
+        logging.debug('Loaded project data from %s', file_path)
+        if not project_data or not isinstance(project_data, list) or not project_data[0] or not isinstance(project_data[0], list) or not project_data[0][0]:
+            return None
+        return project_data
+
+def process_item(item, github, mapped_project_id, mapped_project_fields_info, mapped_project_draft_issue, mapping_file):
+    '''Process item'''
+    content_type, content_id, content_number, repository_name = get_content_from_file(item)
+
+    if content_type == "DI":
+        process_draft_issue(content_number, mapped_project_id, content_id, mapped_project_draft_issue, github, repository_name)
+    else:
+        process_issue_or_pr(item, github, mapped_project_id, content_id, content_number, repository_name, mapped_project_fields_info, mapping_file)
+
+def process_draft_issue(title, mapped_project_id, content_id, mapped_project_draft_issue, github, repository_name):
+    '''Process draft issue'''
+    logging.info('Insert Draft Issue - Project ID: %s, Content ID: %s, Title: %s', mapped_project_id, content_id, title)
+    draft_exists = any(title in item['title'] for item in mapped_project_draft_issue)
+    if draft_exists:
+        logging.info('Insert Draft Issue Skipped - Project ID: %s, Content ID: %s, Title: %s', mapped_project_id, content_id, title)
+    else:
+        github.add_draft_issue(mapped_project_id, title, repository_name)
+        logging.info('Insert Draft Issue Succeeded - Project ID: %s, Content ID: %s, Title: %s', mapped_project_id, content_id, title)
+
+def process_issue_or_pr(item, github, mapped_project_id, content_id, content_number, repository_name, mapped_project_fields_info, mapping_file):
+    '''Process issue or PR'''
+    field_values_list = get_values_from_file(item)
+    logging.info('Insert Items - Project ID: %s, Content ID: %s, Number: %s, Repository: %s, Fields Count: %s',
+                 mapped_project_id, content_id, content_number, repository_name, len(field_values_list))
+
+    github_content = github.get_content(repository_name, content_number)
+    target_content_id = github_content['id']
+
+    project_item = github.add_project_item(mapped_project_id, target_content_id)
+    mapping_file.write(f"{repository_name},{content_number},{content_id} -> {target_content_id}\n")
+    logging.info('Insert Items Succeeded - Project ID: %s, Content ID: %s, Number: %s, Repository: %s',
+                 mapped_project_id, target_content_id, content_number, repository_name)
+
+    set_field_values(github, mapped_project_id, project_item['id'], field_values_list, mapped_project_fields_info)
+
+def find_field_id_by_name(field, mapped_project_fields_info):
+    '''Find field id by name'''
+    field_name = field['field_name']
+    field_value = field['value']
+
+    for mapped_field in mapped_project_fields_info:
+        if mapped_field.name == field_name:
+            field_id, mapped_field_value_id = get_field_id_and_value_id(mapped_field, field_value)
+            if mapped_field_value_id is None and field_id is not None and (
+                mapped_field.typename in ("ProjectV2SingleSelectField", "ProjectV2IterationField")):
+                logging.warning("Option IDs are not found for field %s, value %s", field_name,field_value)
+            return field_id, mapped_field_value_id
+
+    logging.warning("Field not found in target project %s", field_name)
+    return None, None
+
+def get_field_id_and_value_id(mapped_field, field_value):
+    '''Get field id and value id'''
+    field_id = mapped_field.id
+    mapped_field_value_id = None
+
+    if mapped_field.typename == "ProjectV2SingleSelectField":
+        mapped_field_value_id = find_value_id_in_options(mapped_field.options, field_value)
+    elif mapped_field.typename == "ProjectV2IterationField":
+        mapped_field_value_id = find_value_id_in_iterations(mapped_field.configuration, field_value)
+
+    return field_id, mapped_field_value_id
+
+def find_value_id_in_options(options, field_value):
+    '''Find value id in options'''
+    for value in options:
+        if 'name' in value and value['name'] == field_value:
+            return value['id']
+    return None
+
+def find_value_id_in_iterations(configuration, field_value):
+    '''Find value id in iterations'''
+    for iteration_type in ['completedIterations', 'iterations']:
+        for value in configuration.get(iteration_type, []):
+            if 'title' in value and value['title'] == field_value:
+                return value['id']
+    return None
+
+def set_field_values(github, mapped_project_id, item_id, field_values_list, mapped_project_fields_info):
+    '''Set field values'''
+    try:
+        field_ids = []
+        for field in field_values_list:
+            try:
+                field_name = field['field_name']
+                if field_name == 'Title': # skip Title field
+                    continue
+                logging.info('Update Field Value: %s, %s', field_name, field['value'])
+
+                # map field ids
+                field_id, field_mapped_value_id = find_field_id_by_name(field, mapped_project_fields_info)
+                if field_id is None:
+                    continue
+
+                logging.info('Update Field Value: %s, %s, target field id %s, mapped id %s',
+                             field_name,
+                             field['value'],
+                             field_id,
+                             field_mapped_value_id)
+
+                typename = field['typename']
+                field_value = field['value']
+                if typename == 'ProjectV2ItemFieldTextValue':
+                    logging.debug('Updating Field Value (Text): %s, %s', field_name, field_value)
+                    github.set_item_field_value_text(mapped_project_id, item_id, field_id, field_value)
+                    logging.info('Update Field Value Succeeded (Text) - %s, %s', field_name, field_value)
+                elif typename == 'ProjectV2ItemFieldNumberValue':
+                    logging.debug('Updating Field Value (Number): %s, %s', field_name, field_value)
+                    github.set_item_field_value_number(mapped_project_id, item_id, field_id, field_value)
+                    logging.info('Update Field Value Succeeded (Number) - %s, %s', field_name, field_value)
+                elif typename == 'ProjectV2ItemFieldSingleSelectValue':
+                    logging.debug('Updating Field Value (SingleSelect): %s, %s', field_name, field_mapped_value_id)
+                    github.set_item_field_value_selection(mapped_project_id, item_id, field_id, field_mapped_value_id)
+                    logging.info('Update Field Value Succeeded (SingleSelect) - %s, %s', field_name, field_mapped_value_id)
+                elif typename == 'ProjectV2ItemFieldDateValue':
+                    logging.debug('Updating Field Value (Date): %s, %s', field_name, field_value)
+                    github.set_item_field_value_date(mapped_project_id, item_id, field_id, field_value)
+                    logging.info('Update Field Value Succeeded (Date) - %s, %s', field_name, field_value)
+                elif typename == 'ProjectV2ItemFieldIterationValue':
+                    logging.debug('Updating Field Value (Iteration): %s, %s', field_name, field_mapped_value_id)
+                    github.set_item_field_value_iteration(mapped_project_id, item_id, field_id, field_mapped_value_id)
+                    logging.info('Update Field Value Succeeded (Iteration) - %s, %s', field_name, field_mapped_value_id)
+                field_ids.append(field_id)
+            except Exception as field_error:
+                logging.error('Update Field Value Failed - %s, field name %s: %s', item_id, field_name, str(field_error))
+
+    except Exception as general_error:
+        logging.error('Update Field Value Failed - %s: %s', item_id, str(general_error))
+    return field_ids
+
 def get_content_from_file(item):
     '''Get content from file'''
     if 'content' in item:
         contents = item['content']
         content_id = contents['id']
-        content_number = contents['number']
-        repository_name = contents['repository']['name']
-        return content_id, content_number, repository_name
+        is_draft = content_id.startswith("DI_")
+
+        content_title = contents.get('title', '') if is_draft else None
+        content_body = contents.get('body', '') if is_draft else None
+        content_number = contents.get('number') if not is_draft else None
+        repository_name = contents['repository']['name'] if not is_draft else None
+
+        return ("DI", content_id, content_title, content_body) if is_draft else ("I", content_id, content_number, repository_name)
+
+    return (None, None, None, None)
 
 def get_values_from_file(item):
     ''' Get values from file'''
@@ -139,14 +255,31 @@ def get_values_from_file(item):
             if len(field) == 1 and '__typename' in field:
                 continue  # Skip nodes that only contain __typename
             typename = field.get('__typename')
-            value = field.get('text') or field.get('name')
+            value = None
+            if typename == "ProjectV2ItemFieldTextValue":
+                value = field.get('text')
+            elif typename == "ProjectV2ItemFieldSingleSelectValue":
+                value = field.get('name')
+            elif typename == "ProjectV2ItemFieldIterationValue":
+                value = field.get('title')
+            elif typename == "ProjectV2ItemFieldNumberValue":
+                value = field.get('number')
+            elif typename == "ProjectV2ItemFieldDateValue":
+                value = field.get('date')
             field_name = field.get('field', {}).get('name')
+
+            # warning
+            if value is None:
+                logging.warning("Value is not found for field %s", field_name)
+
             field_values_list.append({
                     'typename': typename,
                     'value': value,
                     'field_name': field_name
                 })
+
         return field_values_list
+    return []
 
 if __name__ == '__main__':
     logging.basicConfig(
