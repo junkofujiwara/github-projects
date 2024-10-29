@@ -45,7 +45,7 @@ export.log
 ## Import (Create Project)
 
 ### Overview
-import.py with create-projects option generates a new project based on the exported project information.
+import.py with create-projects option generates new projects based on the exported project information.
 
 ### Usage
     
@@ -64,8 +64,36 @@ import.py with create-projects option generates a new project based on the expor
 - import.log
 - project_mapping.log
 
+project_mapping.log format
+project_id -> mapped_project_id
+
 ### Note
 Projects are imported based on the Project Name, which may result in duplicate projects. Ensure that the execution is performed on an empty organization.
+
+## Import (Create Fields)
+
+### Overview
+import.py with create-fields creates fields in the existing project based on the exported project information.
+
+### Usage
+    
+    ```bash
+    $ export GITHUB_TOKEN_TARGET=your_token
+    $ export GITHUB_ORG_TARGET=your_org_name
+
+    $ python import.py -o create-fields
+    ```
+### Input - Project Info
+- All json files are imported from the "input" folder.
+- Json file name is Project ID.
+- "projects_fields" folder: Project information in json format
+
+### Log
+- import.log
+
+### Note
+- If there is existing field with the same name, it will not be created.
+- Iteration type of fields is not supported due to API limitation.
 
 ## Import (Insert Items)
 
@@ -89,5 +117,11 @@ import.py with insert-items inserts existing items (Issues/PRs) into the existin
 - import.log
 - project_item_mapping.log
 
+project_item_mapping.log format
+repository_name,issue-pr_number,project_item_id -> project_item_name
+
 ### Note
 - If there is no repository or issue/PR in the target organization, the item is not inserted.
+- If a draft item with the same name already exists in the target project, it will not be inserted.
+
+

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf_8 -*-
 '''github.py'''
-import json
 import requests
 
 class ProjectV2Field:
@@ -144,7 +143,7 @@ class Project:
                 variables['cursor'] = page_info['endCursor']
             else:
                 break
-            
+
     def fetch_items(self, github):
         '''Fetch items for the project'''
         query = '''
@@ -434,7 +433,7 @@ class GitHub:
         data = response.json()
 
         if 'data' not in data:
-            raise KeyError("The 'data' key is missing in the response. Response content: {}".format(data))
+            raise KeyError(f"The 'data' key is missing in the response. Response content: {data}")
 
         projects = []
         for node in data['data']['organization']['projectsV2']['nodes']:
@@ -452,46 +451,47 @@ class GitHub:
     def get_single_project(self, target_project_id):
         '''get_single_project'''
         try:
-          project = Project(
+            project = Project(
                 project_id = target_project_id
-          )
-          project.fetch_fields(self)
-          project.fetch_items(self)
+            )
+            project.fetch_fields(self)
+            project.fetch_items(self)
 
-          # fields
-          fields = []
-          for field_data in project.fields[0]:
-            typename = field_data.get("__typename")
-            if typename == "ProjectV2SingleSelectField":
-                field = ProjectV2SingleSelectField(
-                    field_data["id"],
-                    field_data["name"],
-                    typename,
-                    field_data["options"]
-                )
-            elif typename == "ProjectV2IterationField":
-                field = ProjectV2IterationField(
-                    field_data["id"],
-                    field_data["name"],
-                    typename,
-                    field_data["configuration"]
-                )
-            else:
-                field = ProjectV2Field(
-                    field_data["id"],
-                    field_data["name"],
-                    typename
-                )
-            fields.append(field)
+            # fields
+            fields = []
+            for field_data in project.fields[0]:
+                typename = field_data.get("__typename")
+                if typename == "ProjectV2SingleSelectField":
+                    field = ProjectV2SingleSelectField(
+                        field_data["id"],
+                        field_data["name"],
+                        typename,
+                        field_data["options"]
+                    )
+                elif typename == "ProjectV2IterationField":
+                    field = ProjectV2IterationField(
+                        field_data["id"],
+                        field_data["name"],
+                        typename,
+                        field_data["configuration"]
+                    )
+                else:
+                    field = ProjectV2Field(
+                        field_data["id"],
+                        field_data["name"],
+                        typename
+                    )
+                fields.append(field)
 
-          # draft items
-          items = project.items[0]
-          draft_items = [{'id': item['content']['id'], 'title': item['content']['title']} for item in items]
+            # draft items
+            items = project.items[0]
+            draft_items = [{'id': item['content']['id'], 'title': item['content']['title']}
+                           for item in items]
 
-          return fields, draft_items
-              
-        except Exception as e:
-            raise ValueError(f"Failed to get project fields: {e}")
+            return fields, draft_items
+
+        except Exception as error:
+            raise ValueError(f"Failed to get project fields: {error}") from error
 
     def create_project(self, project, owner_id):
         '''create_project'''
@@ -516,7 +516,8 @@ class GitHub:
                                  json={'query': query, 'variables': variables},
                                  headers=self.headers)
         data = response.json()
-        if 'data' in data and 'createProjectV2' in data['data'] and 'projectV2' in data['data']['createProjectV2']:
+        if 'data' in data and 'createProjectV2' in data['data'] and \
+            'projectV2' in data['data']['createProjectV2']:
             project_id = data['data']['createProjectV2']['projectV2']['id']
             return project_id
 
@@ -557,7 +558,8 @@ class GitHub:
                                  json={'query': query, 'variables': variables},
                                  headers=self.headers)
         data = response.json()
-        if 'data' in data and 'updateProjectV2' in data['data'] and 'projectV2' in data['data']['updateProjectV2']:
+        if 'data' in data and 'updateProjectV2' in data['data'] and \
+            'projectV2' in data['data']['updateProjectV2']:
             project_id = data['data']['updateProjectV2']['projectV2']['id']
             project_title = data['data']['updateProjectV2']['projectV2']['title']
             return project_id, project_title
@@ -583,8 +585,8 @@ class GitHub:
         data = response.json()
         return data['data']['organization']['id']
 
-    def create_fields(self, project_id, fields):
-        '''create_fields'''
+    def create_field(self, project_id, data_type, name):
+        '''create_field'''
         query = '''
         mutation($projectId: ID!, $dataType: ProjectV2CustomFieldType!, $name: String!) {
           createProjectV2Field(input: {
@@ -596,23 +598,51 @@ class GitHub:
           }
         }
         '''
-
-        data_type = fields.get('dataType')
-        if not data_type:
-            raise ValueError("Field 'dataType' is missing or invalid in the provided fields data")
-
         variables = {
             "projectId": project_id,
-            "dataType": fields['dataType'],
-            "name": fields['name']
+            "dataType": data_type,
+            "name": name
         }
+
         response = requests.post(self.endpoint,
                                  json={'query': query, 'variables': variables},
                                  headers=self.headers)
         data = response.json()
         if 'errors' in data:
-            raise ValueError(f"Failed to create fields: {data}")
-        
+            raise ValueError(f"Failed to create field: {data}")
+
+        return data['data']['createProjectV2Field']['clientMutationId']
+
+    def create_field_selection(self, project_id, data_type, name, options):
+        '''create_field for single selection'''
+        query = '''
+        mutation($projectId: ID!, $dataType: ProjectV2CustomFieldType!, $name: String!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
+          createProjectV2Field(input: {
+            projectId: $projectId
+            dataType: $dataType
+            name: $name
+            singleSelectOptions: $options
+          }) {
+            clientMutationId
+          }
+        }
+        '''
+        variables = {
+            "projectId": project_id,
+            "dataType": data_type,
+            "name": name,
+            "options": options
+        }
+
+        response = requests.post(self.endpoint,
+                                 json={'query': query, 'variables': variables},
+                                 headers=self.headers)
+        data = response.json()
+        if 'errors' in data:
+            raise ValueError(f"Failed to create field (selection): {data}")
+
+        return data['data']['createProjectV2Field']['clientMutationId']
+
     def get_content(self, repository, number):
         '''get_content'''
         query = '''
@@ -682,10 +712,10 @@ class GitHub:
             'date': 'date',
             'number': 'number'
         }.get(value_type)
-    
+
         if not value_key:
             raise ValueError(f"Invalid value_type: {value_type}")
-    
+
         value_type_map = {
             'text': 'String',
             'iteration': 'String',
@@ -693,7 +723,7 @@ class GitHub:
             'date': 'Date',
             'number': 'Float'
         }
-        
+
         query = f'''
         mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: {value_type_map[value_type]}!) {{
           updateProjectV2ItemFieldValue(input: {{
@@ -723,22 +753,27 @@ class GitHub:
         if 'errors' in data:
             raise ValueError(f"Failed to set item field value for {value_type}: {data}")
         return data['data']['updateProjectV2ItemFieldValue']['projectV2Item']['id']
-    
+
     def set_item_field_value_text(self, project_id, item_id, field_id, value):
+        '''set_field_value_text'''
         return self.set_item_field_value(project_id, item_id, field_id, value, 'text')
-    
+
     def set_item_field_value_iteration(self, project_id, item_id, field_id, value):
+        '''set_field_value_iteration'''
         return self.set_item_field_value(project_id, item_id, field_id, value, 'iteration')
-    
+
     def set_item_field_value_selection(self, project_id, item_id, field_id, value):
+        '''set_field_value_selection'''
         return self.set_item_field_value(project_id, item_id, field_id, value, 'selection')
-    
+
     def set_item_field_value_date(self, project_id, item_id, field_id, value):
+        '''set_field_value_date'''
         return self.set_item_field_value(project_id, item_id, field_id, value, 'date')
-    
+
     def set_item_field_value_number(self, project_id, item_id, field_id, value):
+        '''set_field_value_number'''
         return self.set_item_field_value(project_id, item_id, field_id, value, 'number')
-    
+
     def add_draft_issue(self, project_id, title, body):
         '''add_draft_issue'''
         query = '''
