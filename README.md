@@ -17,6 +17,16 @@ Import project script only generates a new project. It does not import fields, v
     $ pip install -r requirements.txt
     ```
 
+## Sample Scenario
+Organization project migration scenario. 
+<br>(Assumes that repositories and their contents already exist. Manual steps are required due to API limitations)
+- Execute Export
+- Execute Import -o create-projects
+- Execute Import -o create-fields
+- Add Views & missing fields
+- Execute Import -o insert-items
+  
+---
 ## Export
 
 ### Overview
