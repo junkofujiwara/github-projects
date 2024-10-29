@@ -64,8 +64,8 @@ import.py with create-projects option generates new projects based on the export
 - import.log
 - project_mapping.log
 
-project_mapping.log format
-project_id -> mapped_project_id
+project_mapping.log format;<br>
+`project_id -> mapped_project_id`
 
 ### Note
 Projects are imported based on the Project Name, which may result in duplicate projects. Ensure that the execution is performed on an empty organization.
@@ -117,8 +117,8 @@ import.py with insert-items inserts existing items (Issues/PRs) into the existin
 - import.log
 - project_item_mapping.log
 
-project_item_mapping.log format
-repository_name,issue-pr_number,project_item_id -> project_item_name
+project_item_mapping.log format;<br>
+`repository_name,issue-pr_number,project_item_id -> project_item_name`
 
 ### Note
 - If there is no repository or issue/PR in the target organization, the item is not inserted.
