@@ -4,12 +4,7 @@ import json
 import logging
 import os
 from util.github import GitHub
-
-FOLDER_PATH = "projects"
-FOLDER_FIELDS_PATH = "projects_fields"
-FOLDER_ITEM_PATH = "projects_items"
-MAPPING_FILE_PATH = "project_mapping.log"
-MAPPING_ITEMS_FILE_PATH = "project_items_mapping.log"
+from util.comon import Common
 
 def get_json_files(folder_path):
     '''Get JSON files in a folder'''
@@ -18,7 +13,7 @@ def get_json_files(folder_path):
 def read_project_mapping():
     '''Read project mapping file'''
     mapping = {}
-    with open(MAPPING_FILE_PATH, 'r', encoding='utf-8') as file:
+    with open(Common.MAPPING_FILE_PATH, 'r', encoding='utf-8') as file:
         for line in file:
             key, value = line.strip().split(' -> ')
             mapping[key] = value
@@ -27,14 +22,14 @@ def read_project_mapping():
 def import_github_project(organization, auth_token):
     '''Import GitHub project'''
     github = GitHub(organization, auth_token)
-    json_files = get_json_files(FOLDER_PATH)
+    json_files = get_json_files(Common.FOLDER_PATH)
     owner_id = github.get_ownerid()
 
-    with open(MAPPING_FILE_PATH, 'w', encoding='utf-8') as mapping_file:
+    with open(Common.MAPPING_FILE_PATH, 'w', encoding='utf-8') as mapping_file:
         for json_file in json_files:
             project_id = json_file.split('.')[0]
             create_project(project_id, github, owner_id,
-                           os.path.join(FOLDER_PATH, json_file),
+                           os.path.join(Common.FOLDER_PATH, json_file),
                            mapping_file)
 
 def create_project(project_id, github, owner_id, file_path, mapping_file):
@@ -61,14 +56,14 @@ def create_project(project_id, github, owner_id, file_path, mapping_file):
 def import_github_project_fields(organization, auth_token):
     '''Import GitHub project fields'''
     github = GitHub(organization, auth_token)
-    json_files = get_json_files(FOLDER_FIELDS_PATH)
+    json_files = get_json_files(Common.FOLDER_FIELDS_PATH)
     project_mapping = read_project_mapping()
 
     for json_file in json_files:
         project_id = json_file.split('.')[0]
         mapped_project_id = project_mapping.get(project_id)
         create_fields(project_id, github,
-                        os.path.join(FOLDER_FIELDS_PATH, json_file),
+                        os.path.join(Common.FOLDER_FIELDS_PATH, json_file),
                         mapped_project_id)
 
 def field_exists(field_name, mapped_project_fields_info):
@@ -125,15 +120,15 @@ def create_fields(project_id, github, file_path, mapped_project_id):
 def import_github_project_items(organization, auth_token):
     '''Import GitHub project items'''
     github = GitHub(organization, auth_token)
-    json_files = get_json_files(FOLDER_ITEM_PATH)
+    json_files = get_json_files(Common.FOLDER_ITEM_PATH)
     project_mapping = read_project_mapping()
 
-    with open(MAPPING_ITEMS_FILE_PATH, 'w', encoding='utf-8') as mapping_file:
+    with open(Common.MAPPING_ITEMS_FILE_PATH, 'w', encoding='utf-8') as mapping_file:
         for json_file in json_files:
             project_id = json_file.split('.')[0]
             mapped_project_id = project_mapping.get(project_id)
             insert_items(project_id, github,
-                         os.path.join(FOLDER_ITEM_PATH, json_file),
+                         os.path.join(Common.FOLDER_ITEM_PATH, json_file),
                          mapped_project_id,
                          mapping_file)
 
@@ -345,7 +340,7 @@ def get_values_from_file(item):
 
         return field_values_list
     return []
-
+    
 if __name__ == '__main__':
     logging.basicConfig(
         level = logging.INFO,

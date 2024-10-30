@@ -803,3 +803,27 @@ class GitHub:
         if 'errors' in data:
             raise ValueError(f"Failed to create draft issue: {data}")
         return data['data']['addProjectV2DraftIssue']['projectItem']['id']
+
+    def get_project_items_count(self, project_id):
+        '''get_project_items_count'''
+        query = '''
+        query($projectId: ID!) {
+          node(id: $projectId) {
+            ... on ProjectV2 {
+              items(first: 1) {
+                totalCount
+              }
+            }
+          }
+        }
+        '''
+        variables = {
+            "projectId": project_id
+        }
+        response = requests.post(self.endpoint,
+                                 json={'query': query, 'variables': variables},
+                                 headers=self.headers)
+        data = response.json()
+        if 'errors' in data:
+            raise ValueError(f"Failed to get project items count: {data}")
+        return data['data']['node']['items']['totalCount']

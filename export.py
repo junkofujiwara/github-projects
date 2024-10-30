@@ -4,34 +4,30 @@ import json
 import logging
 import os
 from util.github import GitHub
+from util.comon import Common
 
 def export_github_project(organization, auth_token):
     '''Export GitHub project information'''
-    folder_path = "projects"
-    folder_path_fields = "projects_fields"
-    folder_path_views = "projects_views"
-    folder_path_items = "projects_items"
-
-    os.makedirs(folder_path, exist_ok=True)
-    os.makedirs(folder_path_fields, exist_ok=True)
-    os.makedirs(folder_path_views, exist_ok=True)
-    os.makedirs(folder_path_items, exist_ok=True)
+    os.makedirs(Common.FOLDER_PATH, exist_ok=True)
+    os.makedirs(Common.FOLDER_FIELDS_PATH, exist_ok=True)
+    os.makedirs(Common.FOLDER_VIEWS_PATH, exist_ok=True)
+    os.makedirs(Common.FOLDER_ITEM_PATH, exist_ok=True)
 
     github = GitHub(organization, auth_token)
     projects = github.get_projects()
     for project in projects:
         logging.info('Project ID: %s', project.project_id)
 
-        file_path = os.path.join(folder_path, f"{project.project_id}.json")
+        file_path = os.path.join(Common.FOLDER_PATH, f"{project.project_id}.json")
         with open(file_path, 'w', encoding='utf-8') as file:
             json.dump(project.project_meta, file, indent=4)
-        file_path_fields = os.path.join(folder_path_fields, f"{project.project_id}.json")
+        file_path_fields = os.path.join(Common.FOLDER_FIELDS_PATH, f"{project.project_id}.json")
         with open(file_path_fields, 'w', encoding='utf-8') as file:
             json.dump(project.fields, file, indent=4)
-        file_path_views = os.path.join(folder_path_views, f"{project.project_id}.json")
+        file_path_views = os.path.join(Common.FOLDER_VIEWS_PATH, f"{project.project_id}.json")
         with open(file_path_views, 'w', encoding='utf-8') as file:
             json.dump(project.views, file, indent=4)
-        file_path_items = os.path.join(folder_path_items, f"{project.project_id}.json")
+        file_path_items = os.path.join(Common.FOLDER_ITEM_PATH, f"{project.project_id}.json")
         with open(file_path_items, 'w', encoding='utf-8') as file:
             json.dump(project.items, file, indent=4)
 

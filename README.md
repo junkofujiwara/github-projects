@@ -134,4 +134,28 @@ project_item_mapping.log format;<br>
 - If there is no repository or issue/PR in the target organization, the item is not inserted.
 - If a draft item with the same name already exists in the target project, it will not be inserted.
 
+## Check Utility
+
+### Overview
+Utility to check the information in the source and target projects.
+
+### Type of Check
+- check-item-source: Count number of items in the source organization-projects.
+- check-item-target: Count number of items in the target organization-projects.
+
+### Usage
+    
+    ```bash
+    $ export GITHUB_TOKEN=your_token
+    $ export GITHUB_ORG=your_org_name
+    $ export GITHUB_TOKEN_TARGET=your_token
+    $ export GITHUB_ORG_TARGET=your_org_name
+
+    $ python check.py -o check-item-source
+    or
+    $ python check.py -o check-item-target
+    ```
+### Input
+- "projects" folder: Project information in json format (check-item-source/check-item-target)
+- "project_mapping.log": Project ID mapping information (check-item-target)
 
