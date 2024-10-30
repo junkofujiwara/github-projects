@@ -404,7 +404,7 @@ class GitHub:
         self.headers={'Authorization': f'bearer {self.token}',
                       'Accept': 'application/vnd.github.v3+json'}
 
-    def get_projects(self):
+    def get_projects(self, include_items=False):
         '''get_projects'''
         query = '''
         query($organization: String!) {
@@ -445,13 +445,26 @@ class GitHub:
             project.project_meta = node
             project.fetch_fields(self)
             project.fetch_views(self)
-            project.fetch_items(self)
+            if include_items:
+              project.fetch_items(self)
             projects.append(project)
 
         return projects
 
-    def get_single_project(self, target_project_id):
+    def get_single_project(self, project_id):
         '''get_single_project'''
+        try:
+            project = Project(
+                project_id = project_id
+            )
+            project.fetch_items(self)
+            return project
+
+        except Exception as error:
+            raise ValueError(f"Failed to get project info: {error}") from error
+        
+    def get_single_project_for_import(self, target_project_id):
+        '''get_single_project for import'''
         try:
             project = Project(
                 project_id = target_project_id

@@ -6,34 +6,39 @@ import os
 from util.github import GitHub
 from util.comon import Common
 
-def export_github_project(organization, auth_token):
-    '''Export GitHub project information'''
+def create_directories():
+    '''Create necessary directories'''
     os.makedirs(Common.FOLDER_PATH, exist_ok=True)
     os.makedirs(Common.FOLDER_FIELDS_PATH, exist_ok=True)
     os.makedirs(Common.FOLDER_VIEWS_PATH, exist_ok=True)
     os.makedirs(Common.FOLDER_ITEM_PATH, exist_ok=True)
 
+def export_github_project(organization, auth_token):
+    '''Export GitHub project information'''
+
     github = GitHub(organization, auth_token)
-    projects = github.get_projects()
+    include_items = False
+    projects = github.get_projects(include_items)
+    
     for project in projects:
         logging.info('Project ID: %s', project.project_id)
 
-        file_path = os.path.join(Common.FOLDER_PATH, f"{project.project_id}.json")
-        with open(file_path, 'w', encoding='utf-8') as file:
-            json.dump(project.project_meta, file, indent=4)
-        file_path_fields = os.path.join(Common.FOLDER_FIELDS_PATH, f"{project.project_id}.json")
-        with open(file_path_fields, 'w', encoding='utf-8') as file:
-            json.dump(project.fields, file, indent=4)
-        file_path_views = os.path.join(Common.FOLDER_VIEWS_PATH, f"{project.project_id}.json")
-        with open(file_path_views, 'w', encoding='utf-8') as file:
-            json.dump(project.views, file, indent=4)
-        file_path_items = os.path.join(Common.FOLDER_ITEM_PATH, f"{project.project_id}.json")
-        with open(file_path_items, 'w', encoding='utf-8') as file:
-            json.dump(project.items, file, indent=4)
+        Common.write_json_to_file(os.path.join(Common.FOLDER_PATH, f"{project.project_id}.json"), project.project_meta)
+        Common.write_json_to_file(os.path.join(Common.FOLDER_FIELDS_PATH, f"{project.project_id}.json"), project.fields)
+        Common.write_json_to_file(os.path.join(Common.FOLDER_VIEWS_PATH, f"{project.project_id}.json"), project.views)
+        
+        if include_items:
+            Common.write_json_to_file(os.path.join(Common.FOLDER_ITEM_PATH, f"{project.project_id}.json"), project.items)
 
-        fields = project.fields
+    # Export project items separately
+    if not include_items:
+        json_files = Common.get_json_files(Common.FOLDER_PATH)
+        for json_file in json_files:
+            project_id = json_file.split('.')[0]
+            project = github.get_single_project(project_id)
+            Common.write_json_to_file(os.path.join(Common.FOLDER_ITEM_PATH, f"{project_id}.json"), project.items)
 
-    return fields
+    return len(projects)
 
 if __name__ == '__main__':
     logging.basicConfig(
@@ -51,5 +56,7 @@ if __name__ == '__main__':
     if not token:
         raise KeyError("The 'GITHUB_TOKEN' environment variable is missing.")
 
-    export_github_project(org, token)
+    create_directories()
+    count = export_github_project(org, token)
+    logging.info('Exported %d projects', count)
                     

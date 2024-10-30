@@ -5,10 +5,6 @@ import os
 from util.github import GitHub
 from util.comon import Common
 
-def get_json_files(folder_path):
-    '''Get JSON files in a folder'''
-    return [f for f in os.listdir(folder_path) if f.endswith('.json')]
-
 def read_project_mapping():
     '''Read project mapping file'''
     mapping = {}
@@ -21,7 +17,7 @@ def read_project_mapping():
 def check_project_item_counts(organization, auth_token, project_type):
     '''Check project items'''
     github = GitHub(organization, auth_token)
-    json_files = get_json_files(Common.FOLDER_PATH)
+    json_files = Common.get_json_files(Common.FOLDER_PATH)
     for json_file in json_files:
         project_id = json_file.split('.')[0]
         if project_type == 'target':

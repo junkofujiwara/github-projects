@@ -6,10 +6,6 @@ import os
 from util.github import GitHub
 from util.comon import Common
 
-def get_json_files(folder_path):
-    '''Get JSON files in a folder'''
-    return [f for f in os.listdir(folder_path) if f.endswith('.json')]
-
 def read_project_mapping():
     '''Read project mapping file'''
     mapping = {}
@@ -22,7 +18,7 @@ def read_project_mapping():
 def import_github_project(organization, auth_token):
     '''Import GitHub project'''
     github = GitHub(organization, auth_token)
-    json_files = get_json_files(Common.FOLDER_PATH)
+    json_files = Common.get_json_files(Common.FOLDER_PATH)
     owner_id = github.get_ownerid()
 
     with open(Common.MAPPING_FILE_PATH, 'w', encoding='utf-8') as mapping_file:
@@ -56,7 +52,7 @@ def create_project(project_id, github, owner_id, file_path, mapping_file):
 def import_github_project_fields(organization, auth_token):
     '''Import GitHub project fields'''
     github = GitHub(organization, auth_token)
-    json_files = get_json_files(Common.FOLDER_FIELDS_PATH)
+    json_files = Common.get_json_files(Common.FOLDER_FIELDS_PATH)
     project_mapping = read_project_mapping()
 
     for json_file in json_files:
@@ -98,7 +94,7 @@ def create_fields(project_id, github, file_path, mapped_project_id):
             return
 
         # get current project fields
-        mapped_project_fields_info = github.get_single_project(mapped_project_id)
+        mapped_project_fields_info = github.get_single_project_for_import(mapped_project_id)
 
         # create fields
         for project_fields in project_data:
@@ -120,7 +116,7 @@ def create_fields(project_id, github, file_path, mapped_project_id):
 def import_github_project_items(organization, auth_token):
     '''Import GitHub project items'''
     github = GitHub(organization, auth_token)
-    json_files = get_json_files(Common.FOLDER_ITEM_PATH)
+    json_files = Common.get_json_files(Common.FOLDER_ITEM_PATH)
     project_mapping = read_project_mapping()
 
     with open(Common.MAPPING_ITEMS_FILE_PATH, 'w', encoding='utf-8') as mapping_file:
@@ -140,7 +136,7 @@ def insert_items(project_id, github, file_path, mapped_project_id, mapping_file)
             logging.debug('Item not found in file %s.', file_path)
             return
 
-        mapped_project_fields_info, mapped_project_draft_issue = github.get_single_project(mapped_project_id)
+        mapped_project_fields_info, mapped_project_draft_issue = github.get_single_project_for_import(mapped_project_id)
 
         for item in project_data[0]:
             if 'content' in item:
