@@ -159,3 +159,5 @@ Utility to check the information in the source and target projects.
 - "projects" folder: Project information in json format (check-item-source/check-item-target)
 - "project_mapping.log": Project ID mapping information (check-item-target)
 
+### Log
+- check.log
