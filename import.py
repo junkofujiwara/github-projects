@@ -84,7 +84,7 @@ def create_field(github, mapped_project_id, field):
 
     if field_type == 'SINGLE_SELECT':
         options = field['options']
-        options_names = [{'color': 'GRAY', 'description': '', 'name': option['name']} for option in options]
+        options_names = [{'color': option['color'], 'description': option['description'], 'name': option['name']} for option in options]
         mapped_field_id = github.create_field_selection(mapped_project_id, field_type, field_name, options_names)
         logging.info('Create Field Succeeded - Id:%s Name:%s', field_id, field_name)
     elif field_type == 'ITERATION':
@@ -113,7 +113,7 @@ def create_fields(project_id, github, file_path, mapped_project_id):
 
                 # check if field exists
                 if field_exists(field['name'], mapped_project_fields_info):
-                    logging.info('Create Field Skipped - Id:%s Name:%s', field['id'], field['name'])
+                    logging.info('Create Field Skipped (Name already exists) - Id:%s Name:%s', field['id'], field['name'])
                 else:
                     create_field(github, mapped_project_id, field)
 

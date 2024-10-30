@@ -128,7 +128,7 @@ import.py with insert-items inserts existing items (Issues/PRs) into the existin
 - project_item_mapping.log
 
 project_item_mapping.log format;<br>
-`repository_name,issue-pr_number,project_item_id -> project_item_name`
+`repository_name,issue-pr_number, project_item_id -> mapped_project_item_id`
 
 ### Note
 - If there is no repository or issue/PR in the target organization, the item is not inserted.

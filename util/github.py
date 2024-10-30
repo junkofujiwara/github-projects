@@ -113,6 +113,8 @@ class Project:
                     options {
                       id
                       name
+                      color
+                      description
                     }
                   }
                 }
