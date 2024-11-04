@@ -89,7 +89,6 @@ def create_fields(project_id, github, file_path, mapped_project_id):
         logging.info('Create Fields on Project %s', mapped_project_id)
         project_data = load_project_data(file_path)
         if not project_data:
-            logging.debug('Fields not found in file %s.', file_path)
             return
 
         # get current project fields
@@ -126,14 +125,26 @@ def import_github_project_items(organization, auth_token):
                          mapped_project_id,
                          mapping_file)
 
+def count_content_occurrences(data):
+    '''Count content occurrences'''
+    if isinstance(data, dict):
+        return sum(count_content_occurrences(v) for v in data.values()) + ('content' in data)
+    elif isinstance(data, list):
+        return sum(count_content_occurrences(i) for i in data)
+    return 0
+
 def insert_items(project_id, github, file_path, mapped_project_id, mapping_file):
     '''Insert items'''
     try:
         project_data = load_project_data(file_path)
         if not project_data:
-            logging.debug('Item not found in file %s.', file_path)
             return
 
+        count = count_content_occurrences(project_data)
+        logging.info('Insert Items Start - Project ID: %s, Mapped Project ID: %s, Number of Items: %s', 
+                     project_id, mapped_project_id, count)
+        
+        # get current project info
         mapped_project_fields_info, mapped_project_draft_issue = github.get_single_project_for_import(mapped_project_id)
 
         for item in project_data[0]:
@@ -151,6 +162,7 @@ def load_project_data(file_path):
         project_data = json.load(file)
         logging.debug('Loaded project data from %s', file_path)
         if not project_data or not isinstance(project_data, list) or not project_data[0] or not isinstance(project_data[0], list) or not project_data[0][0]:
+            logging.warning('No data found or Invalid project data in %s', file_path)
             return None
         return project_data
 

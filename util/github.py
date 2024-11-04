@@ -706,7 +706,8 @@ class GitHub:
                                  headers=self.headers)
         data = response.json()
         if 'errors' in data:
-            raise ValueError(f"Failed to get contents: {data}")
+            error_messages = [error.get('message', str(error)) for error in data['errors']]
+            raise ValueError(f"Failed to get contents: {'; '.join(error_messages)}")
         return data['data']['repository']['issueOrPullRequest']
 
     def add_project_item(self, project_id, content_id):
