@@ -404,7 +404,7 @@ class GitHub:
         self.headers={'Authorization': f'bearer {self.token}',
                       'Accept': 'application/vnd.github.v3+json'}
 
-    def get_projects(self, include_items=False):
+    def get_projects(self, include_all=False):
         '''get_projects'''
         query = '''
         query($organization: String!) {
@@ -443,26 +443,43 @@ class GitHub:
                 project_id = node['id']
             )
             project.project_meta = node
-            project.fetch_fields(self)
-            project.fetch_views(self)
-            if include_items:
+            if include_all:
+              project.fetch_fields(self)
+              project.fetch_views(self)
               project.fetch_items(self)
             projects.append(project)
 
         return projects
 
-    def get_single_project(self, project_id):
-        '''get_single_project'''
+    def fetch_project_data(self, project_id, data_type):
+        '''fetch project data based on type'''
         try:
-            project = Project(
-                project_id = project_id
-            )
-            project.fetch_items(self)
+            project = Project(project_id=project_id)
+            if data_type == 'fields':
+                project.fetch_fields(self)
+            elif data_type == 'views':
+                project.fetch_views(self)
+            elif data_type == 'items':
+                project.fetch_items(self)
+            else:
+                raise ValueError(f"Unknown data type: {data_type}")
             return project
 
         except Exception as error:
-            raise ValueError(f"Failed to get project info: {error}") from error
-        
+            raise ValueError(f"Failed to get project {data_type}: {error}") from error
+
+    def fetch_project_fields(self, project_id):
+        '''fetch project fields'''
+        return self.fetch_project_data(project_id, 'fields')
+
+    def fetch_project_views(self, project_id):
+        '''fetch project views'''
+        return self.fetch_project_data(project_id, 'views')
+
+    def fetch_project_items(self, project_id):
+        '''fetch project items'''
+        return self.fetch_project_data(project_id, 'items')
+    
     def get_single_project_for_import(self, target_project_id):
         '''get_single_project for import'''
         try:

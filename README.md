@@ -20,9 +20,9 @@ Import project script only generates a new project. It does not import fields, v
 ## Sample Scenario
 Organization project migration scenario. 
 <br>(Assumes that repositories and their contents already exist. Manual steps are required due to API limitations)
-- Execute Export
-- Execute Import -o create-projects
-- Execute Import -o create-fields
+- Execute Export (-o all | -o projects & -o fields & -o views & -o items)
+- Execute Import -o projects
+- Execute Import -o fields
 - Add Views & missing fields
 - Execute Import -o insert-items
   
@@ -38,7 +38,12 @@ export.py exports the project information of the specified organization to a jso
     $ export GITHUB_TOKEN=your_token
     $ export GITHUB_ORG=your_org_name
 
-    $ python export.py
+    $ python export.py -o all
+    or
+    $ python export.py -o projects
+    $ python export.py -o fields
+    $ python export.py -o views
+    $ python export.py -o items
     ```
 
 ### Output - Project Info
@@ -63,7 +68,7 @@ import.py with create-projects option generates new projects based on the export
     $ export GITHUB_TOKEN_TARGET=your_token
     $ export GITHUB_ORG_TARGET=your_org_name
 
-    $ python import.py -o create-projects
+    $ python import.py -o projects
     ```
 ### Input - Project Info
 - All json files are imported from the "input" folder.
@@ -91,7 +96,7 @@ import.py with create-fields creates fields in the existing project based on the
     $ export GITHUB_TOKEN_TARGET=your_token
     $ export GITHUB_ORG_TARGET=your_org_name
 
-    $ python import.py -o create-fields
+    $ python import.py -o fields
     ```
 ### Input - Project Info
 - All json files are imported from the "input" folder.
@@ -116,7 +121,7 @@ import.py with insert-items inserts existing items (Issues/PRs) into the existin
     $ export GITHUB_TOKEN_TARGET=your_token
     $ export GITHUB_ORG_TARGET=your_org_name
 
-    $ python import.py -o insert-items
+    $ python import.py -o items
     ```
 ### Input - Project Info
 - All json files are imported from the "input" folder.

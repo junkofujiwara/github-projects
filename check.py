@@ -17,9 +17,8 @@ def read_project_mapping():
 def check_project_item_counts(organization, auth_token, project_type):
     '''Check project items'''
     github = GitHub(organization, auth_token)
-    json_files = Common.get_json_files(Common.FOLDER_PATH)
-    for json_file in json_files:
-        project_id = json_file.split('.')[0]
+    project_ids = Common.project_id_list(Common.FOLDER_PATH)
+    for project_id in project_ids:
         if project_type == 'target':
             project_mapping = read_project_mapping()
             mapped_project_id = project_mapping.get(project_id)
@@ -63,4 +62,4 @@ if __name__ == '__main__':
     elif args.operation == 'check-item-target':
         check_project_item_counts(org_target, token_target, project_type='target')
     else:
-        print ('usage: import.py [-h] [-o {check-item-source, check-item-target}]')
+        print ('usage: check.py [-h] [-o {check-item-source, check-item-target}]')

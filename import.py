@@ -52,14 +52,13 @@ def create_project(project_id, github, owner_id, file_path, mapping_file):
 def import_github_project_fields(organization, auth_token):
     '''Import GitHub project fields'''
     github = GitHub(organization, auth_token)
-    json_files = Common.get_json_files(Common.FOLDER_FIELDS_PATH)
+    project_ids = Common.project_id_list(Common.FOLDER_FIELDS_PATH)
     project_mapping = read_project_mapping()
 
-    for json_file in json_files:
-        project_id = json_file.split('.')[0]
+    for project_id in project_ids:
         mapped_project_id = project_mapping.get(project_id)
         create_fields(project_id, github,
-                        os.path.join(Common.FOLDER_FIELDS_PATH, json_file),
+                        os.path.join(Common.FOLDER_FIELDS_PATH, f"{project_id}.json"),
                         mapped_project_id)
 
 def field_exists(field_name, mapped_project_fields_info):
@@ -76,12 +75,12 @@ def create_field(github, mapped_project_id, field):
     if field_type == 'SINGLE_SELECT':
         options = field['options']
         options_names = [{'color': option['color'], 'description': option['description'], 'name': option['name']} for option in options]
-        mapped_field_id = github.create_field_selection(mapped_project_id, field_type, field_name, options_names)
+        github.create_field_selection(mapped_project_id, field_type, field_name, options_names)
         logging.info('Create Field Succeeded - Id:%s Name:%s', field_id, field_name)
     elif field_type == 'ITERATION':
         logging.info('Create Field Skipped (Iteration) - Id:%s Name:%s', field_id, field_name)
     else:
-        mapped_field_id = github.create_field(mapped_project_id, field_type, field_name)
+        github.create_field(mapped_project_id, field_type, field_name)
         logging.info('Create Field Succeeded - Id:%s Name:%s', field_id, field_name)
 
 def create_fields(project_id, github, file_path, mapped_project_id):
@@ -116,15 +115,14 @@ def create_fields(project_id, github, file_path, mapped_project_id):
 def import_github_project_items(organization, auth_token):
     '''Import GitHub project items'''
     github = GitHub(organization, auth_token)
-    json_files = Common.get_json_files(Common.FOLDER_ITEM_PATH)
+    project_ids = Common.project_id_list(Common.FOLDER_ITEM_PATH)
     project_mapping = read_project_mapping()
 
     with open(Common.MAPPING_ITEMS_FILE_PATH, 'w', encoding='utf-8') as mapping_file:
-        for json_file in json_files:
-            project_id = json_file.split('.')[0]
+        for project_id in project_ids:
             mapped_project_id = project_mapping.get(project_id)
             insert_items(project_id, github,
-                         os.path.join(Common.FOLDER_ITEM_PATH, json_file),
+                         os.path.join(Common.FOLDER_ITEM_PATH, f"{project_id}.json"),
                          mapped_project_id,
                          mapping_file)
 
@@ -336,7 +334,7 @@ def get_values_from_file(item):
 
         return field_values_list
     return []
-    
+
 if __name__ == '__main__':
     logging.basicConfig(
         level = logging.INFO,
@@ -348,8 +346,8 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Import GitHub project')
     parser.add_argument('-o', '--operation',
-                        choices=['create-projects', 'create-fields', 'insert-items'],
-                        help='Operation to perform (create-projects, create-fields, insert-items)')
+                        choices=['projects', 'fields', 'items'],
+                        help='Operation to perform (projects, fields, items)')
     args = parser.parse_args()
 
     org = os.environ['GITHUB_ORG_TARGET']
@@ -360,12 +358,12 @@ if __name__ == '__main__':
     if not token:
         raise KeyError("The 'GITHUB_TOKEN_TARGET' environment variable is missing.")
 
-    if args.operation == 'create-projects':
+    if args.operation == 'projects':
         import_github_project(org, token)
-    elif args.operation == 'create-fields':
+    elif args.operation == 'fields':
         import_github_project_fields(org, token)
-    elif args.operation == 'insert-items':
+    elif args.operation == 'items':
         import_github_project_items(org, token)
     else:
-        print ('usage: import.py [-h] [-o {create-projects, create-fields, insert-items}]')
+        print ('usage: import.py [-h] [-o {projects, fields, items}]')
                          

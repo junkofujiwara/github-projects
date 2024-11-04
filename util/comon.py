@@ -21,3 +21,11 @@ class Common:
         '''Write JSON data to a file'''
         with open(file_path, 'w', encoding='utf-8') as file:
             json.dump(data, file, indent=4)
+
+    def project_id_list(folder_path):
+        '''Get project ID list from JSON files'''
+        json_files = Common.get_json_files(folder_path)
+        project_id_list = []
+        for json_file in json_files:
+            project_id_list.append(json_file.split('.')[0])
+        return project_id_list
