@@ -7,9 +7,9 @@ The following information is exported.
 - Project fields
 - Project views
 - Project items (with repository information and issue/PR number)
+    - Draft Issue
     - Issue
     - Pull Request
-Import project script only generates a new project. It does not import fields, views, issues, pull requests, or other project items.
 
 ## Requirements
 - Python
