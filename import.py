@@ -86,7 +86,7 @@ def create_field(github, mapped_project_id, field):
 def create_fields(project_id, github, file_path, mapped_project_id):
     '''Create fields'''
     try:
-        logging.info('Create Fields on Project %s', mapped_project_id)
+        logging.info('Create Fields Started - Project ID: %s, Mapped Project ID: %s', project_id, mapped_project_id)
         project_data = load_project_data(file_path)
         if not project_data:
             return
@@ -95,16 +95,28 @@ def create_fields(project_id, github, file_path, mapped_project_id):
         mapped_project_fields_info = github.get_single_project_for_import(mapped_project_id)
 
         # create fields
+        succeed = 0
+        skip = 0
+        fail = 0
         for project_fields in project_data:
             for field in project_fields:
-                if not (isinstance(field, dict) and 'id' in field and 'name' in field and 'dataType' in field):
-                    break
+                try:
+                    if not (isinstance(field, dict) and 'id' in field and 'name' in field and 'dataType' in field):
+                        break
 
-                # check if field exists
-                if field_exists(field['name'], mapped_project_fields_info):
-                    logging.info('Create Field Skipped (Name already exists) - Id:%s Name:%s', field['id'], field['name'])
-                else:
-                    create_field(github, mapped_project_id, field)
+                    # check if field exists
+                    if field_exists(field['name'], mapped_project_fields_info):
+                        logging.info('Create Field Skipped (Name already exists) - Id:%s Name:%s', field['id'], field['name'])
+                        skip = skip + 1
+                    else:
+                        create_field(github, mapped_project_id, field)
+                        succeed = succeed + 1
+                except Exception as item_error:
+                        logging.error('Create Fields Failed - %s: %s', project_id, str(item_error))
+                        fail = fail + 1
+
+        logging.info('Create Fields Completed - Project ID: %s, Mapped Project ID: %s, Succeed: %s, Skip: %s, Fail: %s',
+                     project_id, mapped_project_id, succeed, skip, fail)
 
     except FileNotFoundError as fnf_error:
         logging.error('File not found - %s %s', file_path, str(fnf_error))
@@ -129,7 +141,7 @@ def count_content_occurrences(data):
     '''Count content occurrences'''
     if isinstance(data, dict):
         return sum(count_content_occurrences(v) for v in data.values()) + ('content' in data)
-    elif isinstance(data, list):
+    if isinstance(data, list):
         return sum(count_content_occurrences(i) for i in data)
     return 0
 
@@ -141,15 +153,26 @@ def insert_items(project_id, github, file_path, mapped_project_id, mapping_file)
             return
 
         count = count_content_occurrences(project_data)
-        logging.info('Insert Items Start - Project ID: %s, Mapped Project ID: %s, Number of Items: %s', 
+        logging.info('Insert Items Start - Project ID: %s, Mapped Project ID: %s, Number of Items: %s',
                      project_id, mapped_project_id, count)
-        
+
         # get current project info
         mapped_project_fields_info, mapped_project_draft_issue = github.get_single_project_for_import(mapped_project_id)
 
-        for item in project_data[0]:
-            if 'content' in item:
-                process_item(item, github, mapped_project_id, mapped_project_fields_info, mapped_project_draft_issue, mapping_file)
+        succeed_or_skip = 0
+        fail = 0
+        for project in project_data:
+            for item in project:
+                if 'content' in item:
+                    try:
+                        process_item(item, github, mapped_project_id, mapped_project_fields_info, mapped_project_draft_issue, mapping_file)
+                        succeed_or_skip = succeed_or_skip + 1
+                    except Exception as item_error:
+                        logging.error('Insert Items Failed - %s: %s', project_id, str(item_error))
+                        fail = fail + 1
+
+        logging.info('Insert Items Completed - Project ID: %s, Mapped Project ID: %s, Number of Items: %s, Succeed or Skip: %s, Fail: %s', 
+                     project_id, mapped_project_id, count, succeed_or_skip, fail)
 
     except FileNotFoundError as fnf_error:
         logging.error('File not found - %s %s', file_path, str(fnf_error))
@@ -168,36 +191,37 @@ def load_project_data(file_path):
 
 def process_item(item, github, mapped_project_id, mapped_project_fields_info, mapped_project_draft_issue, mapping_file):
     '''Process item'''
-    content_type, content_id, content_number, repository_name = get_content_from_file(item)
+    content_type, content_id, content_title, content_number, repository_name = get_content_from_file(item)
 
     if content_type == "DI":
-        process_draft_issue(content_number, mapped_project_id, content_id, mapped_project_draft_issue, github, repository_name)
+        process_draft_issue(content_title, mapped_project_id, content_id, mapped_project_draft_issue, github, content_number)
     else:
-        process_issue_or_pr(item, github, mapped_project_id, content_id, content_number, repository_name, mapped_project_fields_info, mapping_file)
+        process_issue_or_pr(item, github, mapped_project_id, content_id, content_title, content_number, repository_name, mapped_project_fields_info, mapping_file)
 
-def process_draft_issue(title, mapped_project_id, content_id, mapped_project_draft_issue, github, repository_name):
+def process_draft_issue(title, mapped_project_id, content_id, mapped_project_draft_issue, github, body):
     '''Process draft issue'''
+
     logging.info('Insert Draft Issue - Project ID: %s, Content ID: %s, Title: %s', mapped_project_id, content_id, title)
     draft_exists = any(title in item['title'] for item in mapped_project_draft_issue)
     if draft_exists:
         logging.info('Insert Draft Issue Skipped - Project ID: %s, Content ID: %s, Title: %s', mapped_project_id, content_id, title)
     else:
-        github.add_draft_issue(mapped_project_id, title, repository_name)
+        github.add_draft_issue(mapped_project_id, title, body)
         logging.info('Insert Draft Issue Succeeded - Project ID: %s, Content ID: %s, Title: %s', mapped_project_id, content_id, title)
 
-def process_issue_or_pr(item, github, mapped_project_id, content_id, content_number, repository_name, mapped_project_fields_info, mapping_file):
+def process_issue_or_pr(item, github, mapped_project_id, content_id, content_title, content_number, repository_name, mapped_project_fields_info, mapping_file):
     '''Process issue or PR'''
     field_values_list = get_values_from_file(item)
-    logging.info('Insert Items - Project ID: %s, Content ID: %s, Number: %s, Repository: %s, Fields Count: %s',
-                 mapped_project_id, content_id, content_number, repository_name, len(field_values_list))
+    logging.info('Insert Items - Project ID: %s, Content ID: %s, Number: %s, Repository: %s, Fields Count: %s, Content Title: %s',
+                 mapped_project_id, content_id, content_number, repository_name, len(field_values_list), content_title)
 
     github_content = github.get_content(repository_name, content_number)
     target_content_id = github_content['id']
 
     project_item = github.add_project_item(mapped_project_id, target_content_id)
     mapping_file.write(f"{repository_name},{content_number},{content_id} -> {target_content_id}\n")
-    logging.info('Insert Items Succeeded - Project ID: %s, Content ID: %s, Number: %s, Repository: %s',
-                 mapped_project_id, target_content_id, content_number, repository_name)
+    logging.info('Insert Items Succeeded - Project ID: %s, Content ID: %s, Number: %s, Repository: %s, Content Title: %s',
+                 mapped_project_id, target_content_id, content_number, repository_name, content_title)
 
     set_field_values(github, mapped_project_id, project_item['id'], field_values_list, mapped_project_fields_info)
 
@@ -303,14 +327,14 @@ def get_content_from_file(item):
         content_id = contents['id']
         is_draft = content_id.startswith("DI_")
 
-        content_title = contents.get('title', '') if is_draft else None
+        content_title = contents.get('title', '')
         content_body = contents.get('body', '') if is_draft else None
         content_number = contents.get('number') if not is_draft else None
         repository_name = contents['repository']['name'] if not is_draft else None
 
-        return ("DI", content_id, content_title, content_body) if is_draft else ("I", content_id, content_number, repository_name)
+        return ("DI", content_id, content_title, content_body, '') if is_draft else ("I", content_id, content_title, content_number, repository_name)
 
-    return (None, None, None, None)
+    return (None, None, None, None, None)
 
 def get_values_from_file(item):
     ''' Get values from file'''
