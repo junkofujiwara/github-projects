@@ -194,11 +194,11 @@ def process_item(item, github, mapped_project_id, mapped_project_fields_info, ma
     content_type, content_id, content_title, content_number, repository_name = get_content_from_file(item)
 
     if content_type == "DI":
-        process_draft_issue(content_title, mapped_project_id, content_id, mapped_project_draft_issue, github, content_number)
+        process_draft_issue(item, content_title, mapped_project_id, content_id, mapped_project_draft_issue, github, content_number, mapped_project_fields_info)
     else:
         process_issue_or_pr(item, github, mapped_project_id, content_id, content_title, content_number, repository_name, mapped_project_fields_info, mapping_file)
 
-def process_draft_issue(title, mapped_project_id, content_id, mapped_project_draft_issue, github, body):
+def process_draft_issue(item, title, mapped_project_id, content_id, mapped_project_draft_issue, github, body, mapped_project_fields_info):
     '''Process draft issue'''
 
     logging.info('Insert Draft Issue - Project ID: %s, Content ID: %s, Title: %s', mapped_project_id, content_id, title)
@@ -206,8 +206,10 @@ def process_draft_issue(title, mapped_project_id, content_id, mapped_project_dra
     if draft_exists:
         logging.info('Insert Draft Issue Skipped - Project ID: %s, Content ID: %s, Title: %s', mapped_project_id, content_id, title)
     else:
-        github.add_draft_issue(mapped_project_id, title, body)
+        draft_id = github.add_draft_issue(mapped_project_id, title, body)
         logging.info('Insert Draft Issue Succeeded - Project ID: %s, Content ID: %s, Title: %s', mapped_project_id, content_id, title)
+        field_values_list = get_values_from_file(item)
+        set_field_values(github, mapped_project_id, draft_id, field_values_list, mapped_project_fields_info)
 
 def process_issue_or_pr(item, github, mapped_project_id, content_id, content_title, content_number, repository_name, mapped_project_fields_info, mapping_file):
     '''Process issue or PR'''
@@ -325,7 +327,7 @@ def get_content_from_file(item):
     if 'content' in item:
         contents = item['content']
         content_id = contents['id']
-        is_draft = content_id.startswith("DI_")
+        is_draft = not 'repository' in contents.keys()
 
         content_title = contents.get('title', '')
         content_body = contents.get('body', '') if is_draft else None

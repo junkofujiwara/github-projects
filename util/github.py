@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf_8 -*-
 '''github.py'''
-import requests
+from util.githubsession import GitHubSession
 
 class ProjectV2Field:
     '''ProjectV2Field class to store field data'''
@@ -133,10 +133,8 @@ class Project:
         }
 
         while True:
-            response = requests.post(github.endpoint,
-                                     json={'query': query, 'variables': variables},
-                                     headers=github.headers)
-            data = response.json()
+            github_session = GitHubSession(github.endpoint, github.headers)
+            data = github_session.post(query, variables)
 
             self.fields.append(data['data']['node']['fields']['nodes'])
 
@@ -243,10 +241,8 @@ class Project:
         }
 
         while True:
-            response = requests.post(github.endpoint,
-                                     json={'query': query, 'variables': variables},
-                                     headers=github.headers)
-            data = response.json()
+            github_session = GitHubSession(github.endpoint, github.headers)
+            data = github_session.post(query, variables)
 
             if 'data' not in data:
                 raise KeyError(f"'data' key not found in response: {data}")
@@ -378,10 +374,8 @@ class Project:
         }
 
         while True:
-            response = requests.post(github.endpoint,
-                                     json={'query': query, 'variables': variables},
-                                     headers=github.headers)
-            data = response.json()
+            github_session = GitHubSession(github.endpoint, github.headers)
+            data = github_session.post(query, variables)
 
             if 'data' not in data:
                 raise KeyError(f"'data' key not found in response: {data}")
@@ -429,10 +423,8 @@ class GitHub:
         variables = {
             "organization": f'{self.org}'
         }
-        response = requests.post(self.endpoint,
-                                 json={'query': query, 'variables': variables},
-                                 headers=self.headers)
-        data = response.json()
+        github_session = GitHubSession(self.endpoint, self.headers)
+        data = github_session.post(query, variables)
 
         if 'data' not in data:
             raise KeyError(f"The 'data' key is missing in the response. Response content: {data}")
@@ -544,10 +536,8 @@ class GitHub:
             "title": project['title'],
             "ownerId": owner_id
         }
-        response = requests.post(self.endpoint,
-                                 json={'query': query, 'variables': variables},
-                                 headers=self.headers)
-        data = response.json()
+        github_session = GitHubSession(self.endpoint, self.headers)
+        data = github_session.post(query, variables)
         if 'data' in data and 'createProjectV2' in data['data'] and \
             'projectV2' in data['data']['createProjectV2']:
             project_id = data['data']['createProjectV2']['projectV2']['id']
@@ -586,10 +576,8 @@ class GitHub:
             "readme": project.get('readme'),
             "shortDescription": project.get('shortDescription')
         }
-        response = requests.post(self.endpoint,
-                                 json={'query': query, 'variables': variables},
-                                 headers=self.headers)
-        data = response.json()
+        github_session = GitHubSession(self.endpoint, self.headers)
+        data = github_session.post(query, variables)
         if 'data' in data and 'updateProjectV2' in data['data'] and \
             'projectV2' in data['data']['updateProjectV2']:
             project_id = data['data']['updateProjectV2']['projectV2']['id']
@@ -611,10 +599,8 @@ class GitHub:
         variables = {
             "login": self.org
         }
-        response = requests.post(self.endpoint,
-                                 json={'query': query, 'variables': variables},
-                                 headers=self.headers)
-        data = response.json()
+        github_session = GitHubSession(self.endpoint, self.headers)
+        data = github_session.post(query, variables)
         return data['data']['organization']['id']
 
     def create_field(self, project_id, data_type, name):
@@ -636,10 +622,8 @@ class GitHub:
             "name": name
         }
 
-        response = requests.post(self.endpoint,
-                                 json={'query': query, 'variables': variables},
-                                 headers=self.headers)
-        data = response.json()
+        github_session = GitHubSession(self.endpoint, self.headers)
+        data = github_session.post(query, variables)
         if 'errors' in data:
             raise ValueError(f"Failed to create field: {data}")
 
@@ -666,10 +650,8 @@ class GitHub:
             "options": options
         }
 
-        response = requests.post(self.endpoint,
-                                 json={'query': query, 'variables': variables},
-                                 headers=self.headers)
-        data = response.json()
+        github_session = GitHubSession(self.endpoint, self.headers)
+        data = github_session.post(query, variables)
         if 'errors' in data:
             raise ValueError(f"Failed to create field (selection): {data}")
 
@@ -701,10 +683,8 @@ class GitHub:
             "repository": repository,
             "number": number
         }
-        response = requests.post(self.endpoint,
-                                 json={'query': query, 'variables': variables},
-                                 headers=self.headers)
-        data = response.json()
+        github_session = GitHubSession(self.endpoint, self.headers)
+        data = github_session.post(query, variables)
         if 'errors' in data:
             error_messages = [error.get('message', str(error)) for error in data['errors']]
             raise ValueError(f"Failed to get contents: {'; '.join(error_messages)}")
@@ -728,10 +708,8 @@ class GitHub:
             "projectId": project_id,
             "contentId": content_id
         }
-        response = requests.post(self.endpoint,
-                                 json={'query': query, 'variables': variables},
-                                 headers=self.headers)
-        data = response.json()
+        github_session = GitHubSession(self.endpoint, self.headers)
+        data = github_session.post(query, variables)
         if 'errors' in data:
             raise ValueError(f"Failed to create item: {data}")
         return data['data']['addProjectV2ItemById']['item']
@@ -779,10 +757,8 @@ class GitHub:
             "fieldId": field_id,
             "value": value
         }
-        response = requests.post(self.endpoint,
-                                 json={'query': query, 'variables': variables},
-                                 headers=self.headers)
-        data = response.json()
+        github_session = GitHubSession(self.endpoint, self.headers)
+        data = github_session.post(query, variables)
         if 'errors' in data:
             raise ValueError(f"Failed to set item field value for {value_type}: {data}")
         return data['data']['updateProjectV2ItemFieldValue']['projectV2Item']['id']
@@ -827,10 +803,8 @@ class GitHub:
             "title": title,
             "body": body
         }
-        response = requests.post(self.endpoint,
-                                 json={'query': query, 'variables': variables},
-                                 headers=self.headers)
-        data = response.json()
+        github_session = GitHubSession(self.endpoint, self.headers)
+        data = github_session.post(query, variables)
         if 'errors' in data:
             raise ValueError(f"Failed to create draft issue: {data}")
         return data['data']['addProjectV2DraftIssue']['projectItem']['id']
@@ -851,10 +825,8 @@ class GitHub:
         variables = {
             "projectId": project_id
         }
-        response = requests.post(self.endpoint,
-                                 json={'query': query, 'variables': variables},
-                                 headers=self.headers)
-        data = response.json()
+        github_session = GitHubSession(self.endpoint, self.headers)
+        data = github_session.post(query, variables)
         if 'errors' in data:
             raise ValueError(f"Failed to get project items count: {data}")
         return data['data']['node']['items']['totalCount']

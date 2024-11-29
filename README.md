@@ -60,7 +60,7 @@ export.log
 ## Import (Create Project)
 
 ### Overview
-import.py with create-projects option generates new projects based on the exported project information.
+import.py with projects option generates new projects based on the exported project information.
 
 ### Usage
     
@@ -88,7 +88,7 @@ Projects are imported based on the Project Name, which may result in duplicate p
 ## Import (Create Fields)
 
 ### Overview
-import.py with create-fields creates fields in the existing project based on the exported project information.
+import.py with fields creates fields in the existing project based on the exported project information.
 
 ### Usage
     
@@ -113,7 +113,7 @@ import.py with create-fields creates fields in the existing project based on the
 ## Import (Insert Items)
 
 ### Overview
-import.py with insert-items inserts existing items (Issues/PRs) into the existing project based on the exported project information.
+import.py with items inserts existing items (Issues/PRs) into the existing project based on the exported project information.
 
 ### Usage
     
@@ -138,6 +138,7 @@ project_item_mapping.log format;<br>
 ### Note
 - If there is no repository or issue/PR in the target organization, the item is not inserted.
 - If a draft item with the same name already exists in the target project, it will not be inserted.
+- Draft item Ids are not listed in project_item_mapping.log.
 
 ## Check Utility
 
